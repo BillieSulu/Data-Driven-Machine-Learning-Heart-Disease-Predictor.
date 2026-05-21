@@ -1,0 +1,244 @@
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import joblib
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.model_selection import train_test_split
+
+dataset = pd.read_csv("data/heart.csv")
+print("Dataset first five columns\n",dataset.head())
+print("\nSummary of the dataset statistics\n", dataset.describe())
+print("\nDataset number of columns and rows",dataset.shape)
+
+print(f"Number of fetures containing null values: \n{dataset.isnull().sum()}")
+print(f"\nNumber of features containing duplicate values: \n{dataset.duplicated()} Duplicated feature is : \n{dataset[dataset.duplicated()]}")
+
+print(dataset["target"].isnull().sum())
+
+print(dataset['target'].dtype)
+
+counts = dataset['target'].value_counts(normalize = True, ascending = True) * 100
+count = dataset['target'].value_counts(ascending = True)
+ax = sns.countplot(data = dataset, x = 'target', palette = 'viridis')
+for i,p in enumerate(ax.patches):
+    perc = f"{counts.iloc[i]:.1f}% ({count.iloc[i]})"
+    ax.annotate(
+        perc,
+        (p.get_x() + p.get_width() / 2, p.get_height()),
+        ha = 'center', va = 'bottom',
+        fontsize = 9.8, fontweight = 'bold',
+    )
+plt.title("Frequency of the target variable")
+plt.show()
+
+### EDA for continuous and categorical features ###
+for feature in dataset.columns:
+    print(f"Feature statistics for {feature.title()}:\n{dataset[feature].describe()}\n")
+
+con_vars = ['age','trestbps','chol','thalach','oldpeak']
+cate_vars = [feature for feature in dataset.columns
+             if feature not in con_vars + ['target']] 
+
+
+
+
+fig, axes = plt.subplots(nrows = 2, ncols = 3, figsize = (10,8))
+axes = axes.flatten()
+
+for i,col in enumerate(con_vars):
+    ax = axes[i]
+    sns.histplot(
+        data = dataset,
+        bins = 11,
+        x = col,
+        edgecolor = 'black',
+        ax = ax
+    )
+    ax.set_title(f"Distribution of {col.title()}")
+    axes[5].axis('off')
+    
+plt.tight_layout()
+plt.show()
+
+fig, axes = plt.subplots(nrows = 2, ncols = 3, figsize = (10,8))
+axes = axes.flatten()
+
+for i, col in enumerate(con_vars):
+    ax = axes[i]
+    sns.boxplot(
+        data = dataset,
+        x = col,
+        ax = ax
+    )
+    ax.set_title(f"Distribution of {col.title()}")
+    axes[5].axis('off')
+    
+plt.tight_layout()
+plt.show()
+
+fig, axes = plt.subplots(nrows = 2, ncols = 4, figsize =(10,6))
+axes = axes.flatten()
+
+for i, col in enumerate(cate_vars):
+    ax = axes[i]
+    counts = dataset[col].value_counts(normalize = True)* 100
+    count = dataset[col].value_counts() 
+    order = counts.index
+    sns.countplot(data = dataset, x = col, palette = 'viridis', ax = ax, order = order)
+    
+    for j,p in enumerate(ax.patches):
+         perc = f"{counts.iloc[j]:.1f}% ({count.iloc[j]})"
+         ax.annotate(
+             perc,
+             (p.get_x() + p.get_width() / 2, p.get_height()),
+             ha = 'center', va = 'bottom',
+             fontsize = 5.5, fontweight = 'bold'
+    )
+         ax.set_title(f"Distribution of {col.title()}")
+    
+plt.tight_layout()
+plt.show()
+
+
+fig, axes = plt.subplots(ncols = 4, nrows = 2, figsize = (10,6))
+axes = axes.flatten()
+
+for i, col in enumerate(cate_vars):
+
+    ax = axes[i]
+
+    counts = dataset[col].value_counts()
+
+    ax.pie(
+        counts,
+        labels = counts.index,
+        colors = plt.cm.Pastel1.colors,
+        autopct = '%1.1f%%',
+        wedgeprops = {'edgecolor': 'black', 'linewidth': 0.5}
+    )
+
+    ax.set_title(f"{col.title()} Distribution")
+
+plt.tight_layout()
+plt.show()
+
+fig, axes = plt.subplots(nrows = 2, ncols = 3, figsize = (10,8))
+axes = axes.flatten()
+
+for i, col in enumerate(con_vars):
+    ax = axes[i]
+    
+    sns.barplot(
+        data = dataset,
+        y = col,
+        x = 'target',
+        ax = ax
+    )
+    ax.set_title(f"Target v {col.title()}")
+    axes[5].axis('off')
+    
+plt.tight_layout()
+plt.show()  
+
+fig, axes = plt.subplots(nrows = 2, ncols = 4, figsize = (10,8))
+axes = axes.flatten()
+
+for i, col in enumerate(cate_vars):
+    ax = axes[i]
+    ct = pd.crosstab(dataset[col],dataset['target'])
+    
+    ct.plot(kind = 'bar', stacked = True, ax = ax)
+    ax.set_title(f"Target v {col.title()}") 
+    
+plt.tight_layout()
+plt.show()
+
+corr = dataset.corr(numeric_only = True)
+
+mask = np.triu(np.ones_like(corr, dtype = bool))
+
+sns.heatmap(corr, mask = mask, cmap = "RdBu_r")
+plt.show()
+
+
+x = dataset.drop("target", axis = 1)
+y = dataset['target']
+
+x_train, x_test, y_train, y_test = train_test_split(
+    x,
+    y,
+    test_size = 0.2,
+    random_state = 42,
+    stratify = y
+)
+
+need_encoding = ['cp','restecg','thal']
+
+preprocessor = ColumnTransformer(
+    transformers = [
+        ('cat', OneHotEncoder(), need_encoding)
+    ], 
+    remainder = 'passthrough'
+)
+
+pipeline = Pipeline([
+    ('preprocessor', preprocessor),
+    ('classifier', RandomForestClassifier(
+        n_estimators = 100, 
+        class_weight = 'balanced', 
+        random_state = 42
+    ))
+])
+
+pipeline.fit(x_train,y_train)
+
+print(x_train.head())
+
+joblib.dump(pipeline, 'heart_pipeline.pkl')
+
+rf_pred = pipeline.predict(x_test)
+print(f"Random Forest accuracy: {accuracy_score(y_test,rf_pred)*100:.2f}%\n Recall: {recall_score(y_test, rf_pred)*100:.2f}%")
+cm = confusion_matrix(y_test,rf_pred)
+cm_table = pd.DataFrame(data = cm, columns = ['Predicted Negative(0)', 'Predicted Positive(1)'], index = ['Actual Negative(0)', 'Actual Positive(1)'])
+print(cm_table)
+print(f"\nRandom Forest accuracy: {accuracy_score(y_test,rf_pred)*100:.2f}%\nRecall: {recall_score(y_test, rf_pred)*100:.2f}%")
+print(f"\nPrecision : {precision_score(y_test,rf_pred)*100:.2f}%\nF1_score: {f1_score(y_test, rf_pred)*100:.2f}%")
+
+
+dt = DecisionTreeClassifier(random_state = 42)
+dt.fit(x_train,y_train)
+dt_pred = dt.predict(x_test)
+cm = confusion_matrix(y_test,dt_pred)
+cm_table = pd.DataFrame(data = cm, columns = ['Predicted Negative(0)', 'Predicted Positive(1)'], index = ['Actual Negative(0)', 'Actual Positive(1)'])
+print(cm_table)
+print(f"\nDecision tree accuracy: {accuracy_score(y_test,dt_pred)*100:.2f}%\nRecall: {recall_score(y_test, dt_pred)*100:.2f}%")
+print(f"\nPrecision: {precision_score(y_test,dt_pred)*100:.2f}%\nF1: {f1_score(y_test, dt_pred)*100:.2f}%")
+
+svm_model = SVC(kernel='rbf', random_state=42)
+scaler = StandardScaler()
+x_train[con_vars] = scaler.fit_transform(x_train[con_vars])
+x_test[con_vars] = scaler.transform(x_test[con_vars])
+svm_model.fit(x_train, y_train)
+svm_pred = svm_model.predict(x_test)
+cm = confusion_matrix(y_test,svm_pred)
+cm_table = pd.DataFrame(data = cm, columns = ['Predicted Negative(0)', 'Predicted Positive(1)'], index = ['Actual Negative(0)', 'Actual Positive(1)'])
+print(cm_table)
+print(f"\nSVM Accuracy: {accuracy_score(y_test, svm_pred)*100:.2f}%\nRecall: {recall_score(y_test, svm_pred)*100.:.2f}%")
+print(f"\nPrecison: {precision_score(y_test, svm_pred)*100:.2f}%\nF1: {f1_score(y_test, svm_pred)*100.:.2f}%")
+
+lr_model = LogisticRegression()
+lr_model.fit(x_train, y_train)
+lr_pred = lr_model.predict(x_test)
+cm = confusion_matrix(y_test,lr_pred)
+cm_table = pd.DataFrame(data = cm, columns = ['Predicted Negative(0)', 'Predicted Positive(1)'], index = ['Actual Negative(0)', 'Actual Positive(1)'])
+print(cm_table)
+print(f"\nLogistic Regression accuracy: {accuracy_score(y_test,lr_pred)*100:.2f}%\nRecall: {recall_score(y_test, lr_pred)*100:.2f}%")
+print(f"\nPrecision: {precision_score(y_test, lr_pred)*100:.2f}%\nF1: {f1_score(y_test, lr_pred)*100.:.2f}%")
