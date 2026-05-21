@@ -9,15 +9,17 @@ Heart disease prediction
 
 ## Machine Learning
 Models Used:
-a) Random Forest
-b) Decision Tree
-c) Support Vector Machine (SVM)
-d) Preprocessing
-e) Missing value handling
-f) Duplicate removal
-g) Outlier treatment (Z-score)
-h) One-hot encoding
-i) Feature scaling
+- Random Forest
+- Decision Tree
+- Support Vector Machine (SVM)
+- Linear Regression
+
+Data preprocessing:
+- Missing value handling
+- Duplicate removal
+- Outlier treatment (Z-score)
+- One-hot encoding
+- Feature scaling
 
 ## Technologies
 Python
@@ -35,15 +37,12 @@ pip install -r requirements.txt
 streamlit run app.py
 
 ## Future Improvements
-PDF report generation
-Email notifications
-SHAP explainability
-Cloud deployment
-REST API integration
+- PDF report generation
+- Email notifications
+- SHAP explainability
+- Cloud deployment
+- REST API integration
 
 ## Author
-
 Developed by Silve Bosire
 
-
-Developed by Silve Bosire
